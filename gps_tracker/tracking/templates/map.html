@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8" />
+  <title>GPS Tracker — Real Yo‘l Harakati (Manual View)</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+  <style>
+    html, body { height: 100%; margin: 0; padding: 0; }
+    #map { height: 100%; width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const agentName = (params.get("name") || "Malika").trim();
+
+    const map = L.map("map", {
+      zoomControl: true,
+      dragging: true,
+      scrollWheelZoom: true,
+      doubleClickZoom: true,
+      touchZoom: true
+    }).setView([41.32, 69.25], 13);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "© OpenStreetMap contributors"
+    }).addTo(map);
+
+    let marker = null;
+    let routeControl = null;
+    let userMovedMap = false; // foydalanuvchi o‘zi xaritani siljitdimi?
+
+    // Agar foydalanuvchi xaritani siljitgan bo‘lsa, avtomatik panTo o‘chadi
+    map.on("dragstart zoomstart", () => {
+      userMovedMap = true;
+    });
+
+    async function fetchData() {
+      try {
+        const res = await fetch(`/api/get_positions/?name=${encodeURIComponent(agentName)}&limit=2`);
+        const data = await res.json();
+        const pts = data.positions || [];
+        if (pts.length < 2) return;
+
+        const prev = pts[pts.length - 2];
+        const curr = pts[pts.length - 1];
+
+        const start = L.latLng(prev.latitude, prev.longitude);
+        const end = L.latLng(curr.latitude, curr.longitude);
+
+        if (!marker) {
+          marker = L.marker(end).addTo(map);
+        } else {
+          marker.setLatLng(end);
+        }
+
+        marker.bindPopup(`${curr.name}<br>${curr.latitude}, ${curr.longitude}`);
+
+        if (routeControl) {
+          map.removeControl(routeControl);
+        }
+
+        routeControl = L.Routing.control({
+          waypoints: [start, end],
+          lineOptions: {
+            styles: [{ color: "blue", opacity: 0.8, weight: 5 }]
+          },
+          addWaypoints: false,
+          draggableWaypoints: false,
+          fitSelectedRoutes: false,
+          show: false
+        }).addTo(map);
+
+        // Agar foydalanuvchi xaritani o‘zi siljitmagan bo‘lsa, 1-marta panTo qilamiz
+        if (!userMovedMap) {
+          map.panTo(end);
+        }
+
+      } catch (err) {
+        console.error("Fetch error:", err);
+      }
+    }
+
+    fetchData();
+    setInterval(fetchData, 3000);
+  </script>
+</body>
+</html>
