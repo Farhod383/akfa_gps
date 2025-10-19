@@ -11,7 +11,8 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'gps_tracker.gps_tracker.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'gps_tracker.settings')
+
 
 
 
